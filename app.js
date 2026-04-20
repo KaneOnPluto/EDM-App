@@ -1,1140 +1,1564 @@
 import React, { useEffect, useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    StatusBar,
-    ScrollView,
-    TextInput,
-    Image,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+  ScrollView,
+  TextInput,
+  Image,
+  Dimensions,
 } from 'react-native';
-import Svg, { Path, Circle, G } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+import { createClient } from '@supabase/supabase-js';
 
-/* ─── GLOBAL ──────────────────────────────────────────────────────────────── */
+const supabase = createClient(
+  'https://paeaehhxldqfnlijhcmp.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhZWFlaGh4bGRxZm5saWpoY21wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODQyNzQsImV4cCI6MjA5MjA2MDI3NH0.NSw_y9nIksN3-0as3ed2J18LT3CQRtU5lD-lcARk4g0'
+);
+
+/* Global */
 
 const MAP_SOURCE = {
-    uri: 'https://task-stalker.vercel.app/asset/New_WM.jpg',
+  uri: 'https://task-stalker.vercel.app/asset/New_WM.jpg',
 };
 
 const TABS = {
-    LIVE: 'live',
-    SIMULATION: 'simulation',
-    DOCS: 'docs',
-    DASHBOARD: 'dashboard',
+  LIVE: 'live',
+  SIMULATION: 'simulation',
+  DOCS: 'docs',
+  DASHBOARD: 'dashboard',
 };
+
+const SCREEN_WIDTH = Dimensions.get('window').width - 40;
 
 const CHART_CONFIG = {
-    backgroundGradientFrom: '#000',
-    backgroundGradientTo: '#000',
-    color: (opacity = 1) => `rgba(0, 255, 136, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 255, 136, ${opacity})`,
-    strokeWidth: 2,
-    propsForBackgroundLines: {
-        stroke: '#003322',
-    },
-    propsForLabels: {
-        fontFamily: 'monospace',
-        fontSize: 10,
-    },
+  backgroundGradientFrom: '#000',
+  backgroundGradientTo: '#000',
+  color: (opacity = 1) => `rgba(0, 255, 136, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(0, 255, 136, ${opacity})`,
+  strokeWidth: 2,
+  propsForBackgroundLines: {
+    stroke: '#003322',
+  },
+  propsForLabels: {
+    fontFamily: 'monospace',
+    fontSize: 10,
+  },
 };
 
-/* ─── DIVERGENCE ENGINE ───────────────────────────────────────────────────── */
+/* DIVERGENCE ENGINE */
 
 const normalizeTemperature = (T) => {
-    if (T >= 22.2 && T <= 25.6) return 1.0;
-    if (T >= 20.0 && T < 22.2) return 1.0 - ((22.2 - T) / 2.2) * 0.3;
-    if (T > 25.6 && T <= 28.0) return 1.0 - ((T - 25.6) / 2.4) * 0.3;
-    if (T >= 18.0 && T < 20.0) return 0.7 - ((20.0 - T) / 2.0) * 0.4;
-    if (T > 28.0 && T <= 31.0) return 0.7 - ((T - 28.0) / 3.0) * 0.4;
-    if (T >= 16.0 && T < 18.0) return 0.3 - ((18.0 - T) / 2.0) * 0.2;
-    if (T > 31.0 && T <= 35.0) return 0.3 - ((T - 31.0) / 4.0) * 0.2;
-    return 0.0;
+  if (T >= 22.2 && T <= 25.6) return 1.0;
+  if (T >= 20.0 && T < 22.2) return 1.0 - ((22.2 - T) / 2.2) * 0.3;
+  if (T > 25.6 && T <= 28.0) return 1.0 - ((T - 25.6) / 2.4) * 0.3;
+  if (T >= 18.0 && T < 20.0) return 0.7 - ((20.0 - T) / 2.0) * 0.4;
+  if (T > 28.0 && T <= 31.0) return 0.7 - ((T - 28.0) / 3.0) * 0.4;
+  if (T >= 16.0 && T < 18.0) return 0.3 - ((18.0 - T) / 2.0) * 0.2;
+  if (T > 31.0 && T <= 35.0) return 0.3 - ((T - 31.0) / 4.0) * 0.2;
+  return 0.0;
 };
 
 const normalizeHumidity = (H) => {
-    if (H >= 40 && H <= 50) return 1.0;
-    if (H >= 30 && H < 40) return 1.0 - ((40 - H) / 10) * 0.2;
-    if (H > 50 && H <= 60) return 1.0 - ((H - 50) / 10) * 0.2;
-    if (H >= 20 && H < 30) return 0.8 - ((30 - H) / 10) * 0.4;
-    if (H > 60 && H <= 70) return 0.8 - ((H - 60) / 10) * 0.4;
-    if (H >= 10 && H < 20) return 0.4 - ((20 - H) / 10) * 0.3;
-    if (H > 70 && H <= 80) return 0.4 - ((H - 70) / 10) * 0.3;
-    return 0.0;
+  if (H >= 40 && H <= 50) return 1.0;
+  if (H >= 30 && H < 40) return 1.0 - ((40 - H) / 10) * 0.2;
+  if (H > 50 && H <= 60) return 1.0 - ((H - 50) / 10) * 0.2;
+  if (H >= 20 && H < 30) return 0.8 - ((30 - H) / 10) * 0.4;
+  if (H > 60 && H <= 70) return 0.8 - ((H - 60) / 10) * 0.4;
+  if (H >= 10 && H < 20) return 0.4 - ((20 - H) / 10) * 0.3;
+  if (H > 70 && H <= 80) return 0.4 - ((H - 70) / 10) * 0.3;
+  return 0.0;
 };
 
 const normalizeIAQ = (G) => {
-    if (G >= 0 && G <= 50) return 1.0;
-    if (G > 50 && G <= 100) return 1.0 - ((G - 50) / 50) * 0.2;
-    if (G > 100 && G <= 150) return 0.8 - ((G - 100) / 50) * 0.2;
-    if (G > 150 && G <= 200) return 0.6 - ((G - 150) / 50) * 0.3;
-    if (G > 200 && G <= 300) return 0.3 - ((G - 200) / 100) * 0.2;
-    return 0.0;
+  if (G >= 0 && G <= 50) return 1.0;
+  if (G > 50 && G <= 100) return 1.0 - ((G - 50) / 50) * 0.2;
+  if (G > 100 && G <= 150) return 0.8 - ((G - 100) / 50) * 0.2;
+  if (G > 150 && G <= 200) return 0.6 - ((G - 150) / 50) * 0.3;
+  if (G > 200 && G <= 300) return 0.3 - ((G - 200) / 100) * 0.2;
+  return 0.0;
 };
 
 const normalizeLux = (L) => {
-    if (L >= 300 && L <= 500) return 1.0;
-    if (L >= 100 && L < 300) return 1.0 - ((300 - L) / 200) * 0.2;
-    if (L >= 50 && L < 100) return 0.8 - ((100 - L) / 50) * 0.3;
-    if (L >= 10 && L < 50) return 0.5 - ((50 - L) / 40) * 0.3;
-    if (L < 10) return 0.0;
-    if (L > 10000) return 0.1;
-    return 1.0;
+  if (L >= 300 && L <= 500) return 1.0;
+  if (L >= 100 && L < 300) return 1.0 - ((300 - L) / 200) * 0.2;
+  if (L >= 50 && L < 100) return 0.8 - ((100 - L) / 50) * 0.3;
+  if (L >= 10 && L < 50) return 0.5 - ((50 - L) / 40) * 0.3;
+  if (L < 10) return 0.0;
+  if (L > 10000) return 0.1;
+  return 1.0;
 };
 
 const normalizeSound = (S) => {
-    if (S <= 30) return 1.0;
-    if (S > 30 && S <= 40) return 1.0 - ((S - 30) / 10) * 0.1;
-    if (S > 40 && S <= 50) return 0.9 - ((S - 40) / 10) * 0.2;
-    if (S > 50 && S <= 65) return 0.7 - ((S - 50) / 15) * 0.4;
-    if (S > 65 && S <= 85) return 0.3 - ((S - 65) / 20) * 0.2;
-    return 0.0;
+  if (S <= 30) return 1.0;
+  if (S > 30 && S <= 40) return 1.0 - ((S - 30) / 10) * 0.1;
+  if (S > 40 && S <= 50) return 0.9 - ((S - 40) / 10) * 0.2;
+  if (S > 50 && S <= 65) return 0.7 - ((S - 50) / 15) * 0.4;
+  if (S > 65 && S <= 85) return 0.3 - ((S - 65) / 20) * 0.2;
+  return 0.0;
 };
 
 const calculateDivergence = (temp, humidity, iaq, lux, sound) => {
-    const fT = normalizeTemperature(parseFloat(temp) || 0);
-    const fH = normalizeHumidity(parseFloat(humidity) || 0);
-    const fG = normalizeIAQ(parseFloat(iaq) || 0);
-    const fL = normalizeLux(parseFloat(lux) || 0);
-    const fS = normalizeSound(parseFloat(sound) || 0);
-    return (0.30 * fT) + (0.20 * fH) + (0.25 * fG) + (0.10 * fL) + (0.15 * fS);
+  const fT = normalizeTemperature(parseFloat(temp) || 0);
+  const fH = normalizeHumidity(parseFloat(humidity) || 0);
+  const fG = normalizeIAQ(parseFloat(iaq) || 0);
+  const fL = normalizeLux(parseFloat(lux) || 0);
+  const fS = normalizeSound(parseFloat(sound) || 0);
+  return 0.3 * fT + 0.2 * fH + 0.25 * fG + 0.1 * fL + 0.15 * fS;
 };
 
+// This calculation/data is not accurate
 const getWorldLine = (d) => {
-    if (d === null || isNaN(d)) return 'UNDEFINED';
+  if (d === null || isNaN(d)) return 'UNDEFINED';
+  if (d < 0.2) return 'ALPHA';
+  if (d < 0.6) return 'BETA';
+  if (d < 0.8) return 'GAMMA';
+  if (d >= 0.9) return 'STEINS';
+  return 'TRANSITION';
+};
+
+const getDivergenceCategory = (d) => {
+  if (d >= 0.9) return { label: 'PERFECT', color: '#00ff88', emoji: '🟢' };
+  if (d >= 0.8) return { label: 'EXCELLENT', color: '#88ff88', emoji: '🟢' };
+  if (d >= 0.6) return { label: 'ACCEPTABLE', color: '#ffcc66', emoji: '🟡' };
+  if (d >= 0.2) return { label: 'POOR', color: '#ff9944', emoji: '🟠' };
+  return { label: 'SEVERE', color: '#ff4444', emoji: '🔴' };
+};
+
+const getWorldLineColor = (worldLine) => {
+  switch (worldLine) {
+    case 'ALPHA':
+      return '#ff8888';
+    case 'BETA':
+      return '#ffaa66';
+    case 'GAMMA':
+      return '#88cc88';
+    case 'STEINS':
+      return '#aaccff';
+    case 'TRANSITION':
+      return '#cccccc';
+    default:
+      return '#888888';
+  }
+};
+
+/* MAIN */
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState(TABS.LIVE);
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Environmental Divergence Meter</Text>
+        <Text style={styles.subHeader}>DIVERGENCE MODEL v 1.0</Text>
+      </View>
+
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 120 }}>
+        <TerminalPanel>
+          {activeTab === TABS.LIVE && <LiveDataMode />}
+          {activeTab === TABS.SIMULATION && <SimulationMode />}
+          {activeTab === TABS.DOCS && <DocumentationMode />}
+          {activeTab === TABS.DASHBOARD && <DashboardMode />}
+        </TerminalPanel>
+      </ScrollView>
+
+      <View style={styles.tabBar}>
+        <TabButton
+          label="LIVE DATA"
+          active={activeTab === TABS.LIVE}
+          onPress={() => setActiveTab(TABS.LIVE)}
+        />
+        <TabButton
+          label="SIMULATION"
+          active={activeTab === TABS.SIMULATION}
+          onPress={() => setActiveTab(TABS.SIMULATION)}
+        />
+        <TabButton
+          label="DOCS"
+          active={activeTab === TABS.DOCS}
+          onPress={() => setActiveTab(TABS.DOCS)}
+        />
+        <TabButton
+          label="DASHBOARD"
+          active={activeTab === TABS.DASHBOARD}
+          onPress={() => setActiveTab(TABS.DASHBOARD)}
+        />
+      </View>
+    </View>
+  );
+}
+
+/* LIVE DATA */
+
+function LiveDataMode() {
+  const [liveData, setLiveData] = useState({
+    temperature: null,
+    humidity: null,
+    iaq: null,
+    lux: null,
+    sound: null,
+    divergence: null,
+  });
+  const [connected, setConnected] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const getWorldLineForLive = (d) => {
+    if (d === null) return 'WAITING...';
     if (d < 0.2) return 'ALPHA';
     if (d < 0.6) return 'BETA';
     if (d < 0.8) return 'GAMMA';
     if (d >= 0.9) return 'STEINS';
     return 'TRANSITION';
-};
+  };
 
-const getDivergenceCategory = (d) => {
-    if (d >= 0.90) return { label: 'PERFECT', color: '#00ff88', emoji: '🟢' };
-    if (d >= 0.80) return { label: 'EXCELLENT', color: '#88ff88', emoji: '🟢' };
-    if (d >= 0.60) return { label: 'ACCEPTABLE', color: '#ffcc66', emoji: '🟡' };
-    if (d >= 0.20) return { label: 'POOR', color: '#ff9944', emoji: '🟠' };
-    return { label: 'SEVERE', color: '#ff4444', emoji: '🔴' };
-};
+  const worldLineColorForVal = (d) => {
+    if (d === null) return '#888888';
+    if (d < 0.2) return '#ff8888';
+    if (d < 0.6) return '#ffaa66';
+    if (d < 0.8) return '#88cc88';
+    if (d >= 0.9) return '#aaccff';
+    return '#cccccc';
+  };
 
-const getWorldLineColor = (worldLine) => {
-    switch (worldLine) {
-        case 'ALPHA': return '#ff8888';
-        case 'BETA': return '#ffaa66';
-        case 'GAMMA': return '#88cc88';
-        case 'STEINS': return '#aaccff';
-        case 'TRANSITION': return '#cccccc';
-        default: return '#888888';
-    }
-};
+  // ESP32 connection and data fetch
+  const fetchLiveData = async () => {
+    try {
+      setRefreshing(true);
 
-/* ─── MAIN ────────────────────────────────────────────────────────────────── */
+      const res = await fetch('http://192.168.0.202/data'); // JSON ENDPOINT
+      const data = await res.json();
 
-export default function App() {
-    const [activeTab, setActiveTab] = useState(TABS.LIVE);
+      setLiveData({
+        temperature: data.temperature,
+        humidity: data.humidity,
+        iaq: data.iaq,
+        lux: data.lux,
+        sound: data.sound,
+        divergence: data.divergence,
+      });
 
-    return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" />
-
-            <View style={styles.header}>
-                <Text style={styles.headerText}>Environmental Divergence Meter</Text>
-                <Text style={styles.subHeader}>DIVERGENCE MODEL v 1.0</Text>
-            </View>
-
-            <ScrollView style={styles.content}>
-                <TerminalPanel>
-                    {activeTab === TABS.LIVE && <LiveDataMode />}
-                    {activeTab === TABS.SIMULATION && <SimulationMode />}
-                    {activeTab === TABS.DOCS && <DocumentationMode />}
-                    {activeTab === TABS.DASHBOARD && <DashboardMode />}
-                </TerminalPanel>
-            </ScrollView>
-
-            <View style={styles.tabBar}>
-                <TabButton label="LIVE DATA" active={activeTab === TABS.LIVE} onPress={() => setActiveTab(TABS.LIVE)} />
-                <TabButton label="SIMULATION" active={activeTab === TABS.SIMULATION} onPress={() => setActiveTab(TABS.SIMULATION)} />
-                <TabButton label="DOCS" active={activeTab === TABS.DOCS} onPress={() => setActiveTab(TABS.DOCS)} />
-                <TabButton label="DASHBOARD" active={activeTab === TABS.DASHBOARD} onPress={() => setActiveTab(TABS.DASHBOARD)} />
-            </View>
-        </View>
-    );
-}
-
-/* ─── LIVE DATA ───────────────────────────────────────────────────────────── */
-
-function LiveDataMode() {
-    const [liveData, setLiveData] = useState({
+      setConnected(true);
+    } catch (err) {
+      console.log('ESP32 fetch error:', err);
+      setConnected(false);
+      // If ESP32 not connected
+      setConnected(false);
+      setLiveData({
         temperature: null,
         humidity: null,
         iaq: null,
         lux: null,
         sound: null,
         divergence: null,
-    });
-    const [connected, setConnected] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-    const getWorldLineForLive = (d) => {
-        if (d === null) return 'WAITING...';
-        if (d < 0.2) return 'ALPHA';
-        if (d < 0.6) return 'BETA';
-        if (d < 0.8) return 'GAMMA';
-        if (d >= 0.9) return 'STEINS';
-        return 'TRANSITION';
-    };
+  useEffect(() => {
+    fetchLiveData();
 
-    const worldLineColorForVal = (d) => {
-        if (d === null) return '#888888';
-        if (d < 0.2) return '#ff8888';
-        if (d < 0.6) return '#ffaa66';
-        if (d < 0.8) return '#88cc88';
-        if (d >= 0.9) return '#aaccff';
-        return '#cccccc';
-    };
+    const interval = setInterval(fetchLiveData, 3000);
 
-    // ESP32 connection and data fetch (Soon!)
-    const fetchLiveData = async () => {
-        setRefreshing(true);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+    return () => clearInterval(interval);
+  }, []);
 
-        // Mock data for now – replaced later with actual ESP32 endpoint
-        const mockData = {
-            temperature: 30,
-            humidity: 75,
-            iaq: 180,
-            lux: 50,
-            sound: 65,
-            divergence: 0.420000,
-        };
+  return (
+    <View>
+      <Line text="LIVE DATA MODE - ESP32 STREAM" />
+      <Spacer />
 
-        setLiveData(mockData);
-        setConnected(true);
-        setRefreshing(false);
-    };
+      <Row
+        icon={<ChipIcon />}
+        label="STATUS"
+        value={connected ? 'ESP32 CONNECTED' : 'DISCONNECTED'}
+        color={connected ? '#00ff88' : '#ff4444'}
+      />
+      <Spacer />
 
-    useEffect(() => {
-        fetchLiveData();
-        const interval = setInterval(fetchLiveData, 5000);
-        return () => clearInterval(interval);
-    }, []);
+      <Line text="SENSOR READINGS" />
+      <Spacer />
 
-    return (
-        <View>
-            <Line text="LIVE DATA MODE - ESP32 STREAM" />
-            <Spacer />
+      <Row
+        icon={<TempIcon />}
+        label="TEMPERATURE"
+        value={
+          liveData.temperature !== null
+            ? `${liveData.temperature}°C`
+            : 'WAITING...'
+        }
+      />
+      <Row
+        icon={<HumidityIcon />}
+        label="HUMIDITY"
+        value={
+          liveData.humidity !== null ? `${liveData.humidity}%` : 'WAITING...'
+        }
+      />
+      <Row
+        icon={<AqiIcon />}
+        label="IAQ INDEX"
+        value={liveData.iaq !== null ? `${liveData.iaq}` : 'WAITING...'}
+      />
+      <Row
+        icon={<LightIcon />}
+        label="LUMINOSITY"
+        value={liveData.lux !== null ? `${liveData.lux} LUX` : 'WAITING...'}
+      />
+      <Row
+        icon={<SoundIcon />}
+        label="SOUND LEVEL"
+        value={liveData.sound !== null ? `${liveData.sound} dB` : 'WAITING...'}
+      />
 
-            <Row
-                icon={<ChipIcon />}
-                label="STATUS"
-                value={connected ? 'ESP32 CONNECTED' : 'DISCONNECTED'}
-                color={connected ? '#00ff88' : '#ff4444'}
-            />
-            <Spacer />
+      <Row
+        icon={<DivergenceIcon />}
+        label="DIVERGENCE"
+        value={
+          liveData.divergence !== null
+            ? liveData.divergence.toFixed(6)
+            : 'WAITING...'
+        }
+        color={worldLineColorForVal(liveData.divergence)}
+      />
+      <Row
+        icon={<Text style={{ fontSize: 16, color: '#fff' }}>🌐</Text>}
+        label="WORLD LINE"
+        value={getWorldLineForLive(liveData.divergence)}
+        color={worldLineColorForVal(liveData.divergence)}
+      />
 
-            <Line text="SENSOR READINGS" />
-            <Spacer />
+      <Spacer />
+      <TouchableOpacity onPress={fetchLiveData} disabled={refreshing}>
+        <Text style={styles.command}>
+          {refreshing ? '[ REFRESHING... ]' : '[ REFRESH DATA ]'}
+        </Text>
+      </TouchableOpacity>
 
-            <Row icon={<TempIcon />} label="TEMPERATURE" value={liveData.temperature !== null ? `${liveData.temperature}°C` : 'WAITING...'} />
-            <Row icon={<HumidityIcon />} label="HUMIDITY" value={liveData.humidity !== null ? `${liveData.humidity}%` : 'WAITING...'} />
-            <Row icon={<AqiIcon />} label="IAQ INDEX" value={liveData.iaq !== null ? `${liveData.iaq}` : 'WAITING...'} />
-            <Row icon={<LightIcon />} label="LUMINOSITY" value={liveData.lux !== null ? `${liveData.lux} LUX` : 'WAITING...'} />
-            <Row icon={<SoundIcon />} label="SOUND LEVEL" value={liveData.sound !== null ? `${liveData.sound} dB` : 'WAITING...'} />
-
-            <Row
-                icon={<DivergenceIcon />}
-                label="DIVERGENCE"
-                value={liveData.divergence !== null ? liveData.divergence.toFixed(6) : 'WAITING...'}
-                color={worldLineColorForVal(liveData.divergence)}
-            />
-            <Row
-                icon={<Text style={{ fontSize: 16, color: '#fff' }}>🌐</Text>}
-                label="WORLD LINE"
-                value={getWorldLineForLive(liveData.divergence)}
-                color={worldLineColorForVal(liveData.divergence)}
-            />
-
-            <Spacer />
-            <TouchableOpacity onPress={fetchLiveData} disabled={refreshing}>
-                <Text style={styles.command}>
-                    {refreshing ? '[ REFRESHING... ]' : '[ REFRESH DATA ]'}
-                </Text>
-            </TouchableOpacity>
-
-            <Spacer />
-            <Line text={`LAST UPDATE: ${new Date().toLocaleTimeString()}`} />
-        </View>
-    );
+      <Spacer />
+      <Line text={`LAST UPDATE: ${new Date().toLocaleTimeString()}`} />
+    </View>
+  );
 }
 
-/* ─── SIMULATION MODE ─────────────────────────────────────────────────────── */
+/* SIMULATION MODE */
 
 function SimulationMode() {
-    const [manualData, setManualData] = useState({
-        temperature: '23.5',
-        humidity: '45',
-        iaq: '35',
-        lux: '400',
-        sound: '35',
-    });
+  const [manualData, setManualData] = useState({
+    temperature: '23.5',
+    humidity: '45',
+    iaq: '35',
+    lux: '400',
+    sound: '35',
+  });
 
-    const [city, setCity] = useState('NEW YORK');
-    const [coords, setCoords] = useState({ lat: 40.7128, lon: -74.006 });
-    const [apiData, setApiData] = useState({ temperature: null, humidity: null, iaq: null, lux: null, sound: null });
-    const [loading, setLoading] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-    const [inputMode, setInputMode] = useState('manual');
+  const [city, setCity] = useState('NEW YORK');
+  const [coords, setCoords] = useState({ lat: 40.7128, lon: -74.006 });
+  const [apiData, setApiData] = useState({
+    temperature: null,
+    humidity: null,
+    iaq: null,
+    lux: null,
+    sound: null,
+  });
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [inputMode, setInputMode] = useState('manual');
 
-    const BUILDING_QUALITY = {
-        US: 1.0, CA: 1.0, GB: 1.0, DE: 1.0, FR: 1.0, JP: 1.0, KR: 1.0, AU: 1.0,
-        DK: 1.0, SE: 1.0, NO: 1.0, FI: 1.0, NL: 1.0, CH: 1.0, AT: 1.0, BE: 1.0,
-        IT: 0.9, ES: 0.9, PT: 0.9, SG: 1.0, NZ: 1.0,
-        CN: 0.6, BR: 0.5, MX: 0.5, ZA: 0.5, TR: 0.5, TH: 0.4, VN: 0.4,
-        IN: 0.3, PK: 0.3, BD: 0.2, NP: 0.3, LK: 0.4,
-        DEFAULT: 0.5,
+  const BUILDING_QUALITY = {
+    US: 1.0,
+    CA: 1.0,
+    GB: 1.0,
+    DE: 1.0,
+    FR: 1.0,
+    JP: 1.0,
+    KR: 1.0,
+    AU: 1.0,
+    DK: 1.0,
+    SE: 1.0,
+    NO: 1.0,
+    FI: 1.0,
+    NL: 1.0,
+    CH: 1.0,
+    AT: 1.0,
+    BE: 1.0,
+    IT: 0.9,
+    ES: 0.9,
+    PT: 0.9,
+    SG: 1.0,
+    NZ: 1.0,
+    CN: 0.6,
+    BR: 0.5,
+    MX: 0.5,
+    ZA: 0.5,
+    TR: 0.5,
+    TH: 0.4,
+    VN: 0.4,
+    IN: 0.3,
+    PK: 0.3,
+    BD: 0.2,
+    NP: 0.3,
+    LK: 0.4,
+    DEFAULT: 0.5,
+  };
+
+  const currentData = inputMode === 'manual' ? manualData : apiData;
+  const divergence = calculateDivergence(
+    currentData.temperature,
+    currentData.humidity,
+    currentData.iaq,
+    currentData.lux,
+    currentData.sound
+  );
+  const worldLine = getWorldLine(divergence);
+  const category = getDivergenceCategory(divergence);
+
+  useEffect(() => {
+    const fetchCityData = async (cityName) => {
+      try {
+        setLoading(true);
+
+        const geoRes = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${cityName}`
+        );
+        const geoData = await geoRes.json();
+        if (!geoData.results) {
+          setLoading(false);
+          return;
+        }
+
+        const { latitude, longitude, name, country_code } = geoData.results[0];
+        const countryCode = country_code.toUpperCase();
+        const buildingQuality =
+          BUILDING_QUALITY[countryCode] ?? BUILDING_QUALITY.DEFAULT;
+
+        setCoords({ lat: latitude, lon: longitude });
+        setCity(name.toUpperCase());
+
+        const weatherRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relativehumidity_2m`
+        );
+        const weatherData = await weatherRes.json();
+
+        const aqiRes = await fetch(
+          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=us_aqi,pm10,pm2_5`
+        );
+        const aqiData = await aqiRes.json();
+
+        const currentHour = new Date().getHours();
+
+        const outdoorAQI = aqiData.current?.us_aqi || 50;
+        const infiltrationFactor = 1.0 - buildingQuality * 0.6;
+        const baseIAQ =
+          outdoorAQI * infiltrationFactor * 1.5 + 20 + Math.random() * 30;
+        const indoorIAQ = Math.min(500, Math.max(0, Math.round(baseIAQ)));
+
+        const outdoorTemp = weatherData.current_weather.temperature;
+        const hasAC = Math.random() < buildingQuality * 0.9 + 0.1;
+        const indoorTemp = hasAC
+          ? 22 + Math.random() * 3
+          : Math.max(18, outdoorTemp - (2 + Math.random() * 3));
+
+        const outdoorHumidity =
+          weatherData.hourly.relativehumidity_2m[currentHour];
+        let indoorHumidity = hasAC
+          ? Math.min(60, outdoorHumidity * 0.6 + 10 + Math.random() * 10)
+          : Math.min(85, outdoorHumidity * 0.9 + 5 + Math.random() * 10);
+        indoorHumidity = Math.max(20, Math.min(80, Math.round(indoorHumidity)));
+
+        const isDaytime = currentHour >= 6 && currentHour <= 18;
+        const weatherCode = weatherData.current_weather.weathercode;
+        let indoorLux;
+        if (isDaytime) {
+          if (weatherCode === 0) indoorLux = 350 + Math.random() * 200;
+          else if (weatherCode < 50) indoorLux = 250 + Math.random() * 150;
+          else indoorLux = 200 + Math.random() * 150;
+        } else {
+          indoorLux = 150 + Math.random() * 150;
+        }
+
+        const noiseBase = buildingQuality < 0.5 ? 45 : 30;
+        let indoorSound =
+          noiseBase + (5 + Math.random() * 15) * (1 - buildingQuality * 0.3);
+        if (Math.abs(latitude) < 30) indoorSound += 5;
+        indoorSound = Math.round(Math.min(75, Math.max(25, indoorSound)));
+
+        setApiData({
+          temperature: Math.round(indoorTemp * 10) / 10,
+          humidity: indoorHumidity,
+          iaq: indoorIAQ,
+          lux: Math.round(indoorLux),
+          sound: indoorSound,
+        });
+
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setLoading(false);
+      }
     };
 
-    const currentData = inputMode === 'manual' ? manualData : apiData;
-    const divergence = calculateDivergence(
-        currentData.temperature, currentData.humidity,
-        currentData.iaq, currentData.lux, currentData.sound
+    if (inputMode === 'api') fetchCityData(city);
+  }, [city, inputMode]);
+
+  const searchCity = async () => {
+    if (!searchQuery) return;
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${searchQuery}`
     );
-    const worldLine = getWorldLine(divergence);
-    const category = getDivergenceCategory(divergence);
+    const data = await res.json();
+    setSearchResults(data.results || []);
+  };
 
-    useEffect(() => {
-        const fetchCityData = async (cityName) => {
-            try {
-                setLoading(true);
+  return (
+    <View>
+      <Line text="SIMULATION MODE - TEST ENVIRONMENT" />
+      <Spacer />
 
-                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${cityName}`);
-                const geoData = await geoRes.json();
-                if (!geoData.results) { setLoading(false); return; }
+      <View style={styles.modeToggle}>
+        <TouchableOpacity
+          onPress={() => setInputMode('manual')}
+          style={[
+            styles.modeButton,
+            inputMode === 'manual' && styles.modeButtonActive,
+          ]}>
+          <Text
+            style={[
+              styles.modeButtonText,
+              inputMode === 'manual' && styles.modeButtonTextActive,
+            ]}>
+            MANUAL INPUT
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setInputMode('api')}
+          style={[
+            styles.modeButton,
+            inputMode === 'api' && styles.modeButtonActive,
+          ]}>
+          <Text
+            style={[
+              styles.modeButtonText,
+              inputMode === 'api' && styles.modeButtonTextActive,
+            ]}>
+            API SIMULATION
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-                const { latitude, longitude, name, country_code } = geoData.results[0];
-                const countryCode = country_code.toUpperCase();
-                const buildingQuality = BUILDING_QUALITY[countryCode] ?? BUILDING_QUALITY.DEFAULT;
+      <Spacer />
 
-                setCoords({ lat: latitude, lon: longitude });
-                setCity(name.toUpperCase());
-
-                const weatherRes = await fetch(
-                    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relativehumidity_2m`
-                );
-                const weatherData = await weatherRes.json();
-
-                const aqiRes = await fetch(
-                    `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=us_aqi,pm10,pm2_5`
-                );
-                const aqiData = await aqiRes.json();
-
-                const currentHour = new Date().getHours();
-
-                const outdoorAQI = aqiData.current?.us_aqi || 50;
-                const infiltrationFactor = 1.0 - buildingQuality * 0.6;
-                const baseIAQ = outdoorAQI * infiltrationFactor * 1.5 + 20 + Math.random() * 30;
-                const indoorIAQ = Math.min(500, Math.max(0, Math.round(baseIAQ)));
-
-                const outdoorTemp = weatherData.current_weather.temperature;
-                const hasAC = Math.random() < buildingQuality * 0.9 + 0.1;
-                const indoorTemp = hasAC
-                    ? 22 + Math.random() * 3
-                    : Math.max(18, outdoorTemp - (2 + Math.random() * 3));
-
-                const outdoorHumidity = weatherData.hourly.relativehumidity_2m[currentHour];
-                let indoorHumidity = hasAC
-                    ? Math.min(60, outdoorHumidity * 0.6 + 10 + Math.random() * 10)
-                    : Math.min(85, outdoorHumidity * 0.9 + 5 + Math.random() * 10);
-                indoorHumidity = Math.max(20, Math.min(80, Math.round(indoorHumidity)));
-
-                const isDaytime = currentHour >= 6 && currentHour <= 18;
-                const weatherCode = weatherData.current_weather.weathercode;
-                let indoorLux;
-                if (isDaytime) {
-                    if (weatherCode === 0) indoorLux = 350 + Math.random() * 200;
-                    else if (weatherCode < 50) indoorLux = 250 + Math.random() * 150;
-                    else indoorLux = 200 + Math.random() * 150;
-                } else {
-                    indoorLux = 150 + Math.random() * 150;
-                }
-
-                const noiseBase = buildingQuality < 0.5 ? 45 : 30;
-                let indoorSound = noiseBase + (5 + Math.random() * 15) * (1 - buildingQuality * 0.3);
-                if (Math.abs(latitude) < 30) indoorSound += 5;
-                indoorSound = Math.round(Math.min(75, Math.max(25, indoorSound)));
-
-                setApiData({
-                    temperature: Math.round(indoorTemp * 10) / 10,
-                    humidity: indoorHumidity,
-                    iaq: indoorIAQ,
-                    lux: Math.round(indoorLux),
-                    sound: indoorSound,
-                });
-
-                setLoading(false);
-            } catch (err) {
-                console.error(err);
-                setLoading(false);
-            }
-        };
-
-        if (inputMode === 'api') fetchCityData(city);
-    }, [city, inputMode]);
-
-    const searchCity = async () => {
-        if (!searchQuery) return;
-        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${searchQuery}`);
-        const data = await res.json();
-        setSearchResults(data.results || []);
-    };
-
-    return (
+      {inputMode === 'manual' && (
         <View>
-            <Line text="SIMULATION MODE - TEST ENVIRONMENT" />
-            <Spacer />
-
-            <View style={styles.modeToggle}>
-                <TouchableOpacity
-                    onPress={() => setInputMode('manual')}
-                    style={[styles.modeButton, inputMode === 'manual' && styles.modeButtonActive]}>
-                    <Text style={[styles.modeButtonText, inputMode === 'manual' && styles.modeButtonTextActive]}>
-                        MANUAL INPUT
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={() => setInputMode('api')}
-                    style={[styles.modeButton, inputMode === 'api' && styles.modeButtonActive]}>
-                    <Text style={[styles.modeButtonText, inputMode === 'api' && styles.modeButtonTextActive]}>
-                        API SIMULATION
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            <Spacer />
-
-            {inputMode === 'manual' && (
-                <View>
-                    <Line text="MANUAL SENSOR INPUT" />
-                    <Spacer />
-                    <InputRow label="TEMPERATURE (°C)" value={manualData.temperature} onChangeText={(v) => setManualData({ ...manualData, temperature: v })} placeholder="23.5" />
-                    <InputRow label="HUMIDITY (%)" value={manualData.humidity} onChangeText={(v) => setManualData({ ...manualData, humidity: v })} placeholder="45" />
-                    <InputRow label="IAQ INDEX" value={manualData.iaq} onChangeText={(v) => setManualData({ ...manualData, iaq: v })} placeholder="35" />
-                    <InputRow label="LUMINOSITY (LUX)" value={manualData.lux} onChangeText={(v) => setManualData({ ...manualData, lux: v })} placeholder="400" />
-                    <InputRow label="SOUND (dB)" value={manualData.sound} onChangeText={(v) => setManualData({ ...manualData, sound: v })} placeholder="35" />
-                </View>
-            )}
-
-            {inputMode === 'api' && (
-                <View>
-                    <Line text="API DATA SOURCE + SIMULATION" />
-                    <Spacer />
-
-                    <Text style={styles.text}>{"> SEARCH LOCATION"}</Text>
-                    <TextInput
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholder="TYPE CITY NAME"
-                        placeholderTextColor="#004422"
-                        style={styles.input}
-                    />
-                    <TouchableOpacity onPress={searchCity}>
-                        <Text style={styles.command}>[ SEARCH ]</Text>
-                    </TouchableOpacity>
-
-                    {searchResults.length > 0 && (
-                        <View style={styles.searchResults}>
-                            {searchResults.map((item, i) => (
-                                <TouchableOpacity
-                                    key={i}
-                                    onPress={() => {
-                                        setCity(item.name.toUpperCase());
-                                        setSearchQuery('');
-                                        setSearchResults([]);
-                                    }}>
-                                    <Text style={styles.text}>{'   '}→ {item.name.toUpperCase()}, {item.country}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
-
-                    <Spacer />
-                    <Line text={`LOCATION: ${city}`} />
-                    <Line text="SIMULATING INDOOR CONDITIONS FROM OUTDOOR DATA" />
-                    <Spacer />
-
-                    <Line text="WORLD MAP" />
-                    <WorldMap coords={coords} />
-
-                    <Spacer />
-                    <Line text="SIMULATED INDOOR ENVIRONMENT" />
-                    <Spacer />
-
-                    {loading ? (
-                        <Text style={styles.text}>   LOADING DATA...</Text>
-                    ) : (
-                        <>
-                            <Row icon={<TempIcon />} label="TEMPERATURE" value={apiData.temperature !== null ? `${apiData.temperature}°C` : 'N/A'} />
-                            <Row icon={<HumidityIcon />} label="HUMIDITY" value={apiData.humidity !== null ? `${apiData.humidity}%` : 'N/A'} />
-                            <Row icon={<AqiIcon />} label="IAQ INDEX" value={apiData.iaq !== null ? `${apiData.iaq}` : 'N/A'} />
-                            <Row icon={<LightIcon />} label="LUMINOSITY" value={apiData.lux !== null ? `${apiData.lux} LUX` : 'N/A'} />
-                            <Row icon={<SoundIcon />} label="SOUND LEVEL" value={apiData.sound !== null ? `${apiData.sound} dB` : 'N/A'} />
-                        </>
-                    )}
-                </View>
-            )}
-
-            <Spacer />
-            <Line text="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" />
-            <Spacer />
-
-            <Line text="DIVERGENCE ANALYSIS" />
-            <Spacer />
-
-            <Row icon={<DivergenceIcon />} label="DIVERGENCE" value={divergence.toFixed(6)} color={category.color} />
-            <Row icon={<Text style={{ fontSize: 16 }}>{category.emoji}</Text>} label="CATEGORY" value={category.label} color={category.color} />
-            <Row icon={<Text style={{ fontSize: 16, color: '#fff' }}>🌐</Text>} label="WORLD LINE" value={worldLine} color={getWorldLineColor(worldLine)} />
-
-            <Spacer />
-            <Line text="COMPONENT SCORES" />
-            <Spacer />
-
-            <Text style={styles.text}>{'   '}Temperature: {normalizeTemperature(parseFloat(currentData.temperature) || 0).toFixed(3)} (30% weight)</Text>
-            <Text style={styles.text}>{'   '}Humidity:    {normalizeHumidity(parseFloat(currentData.humidity) || 0).toFixed(3)} (20% weight)</Text>
-            <Text style={styles.text}>{'   '}IAQ:         {normalizeIAQ(parseFloat(currentData.iaq) || 0).toFixed(3)} (25% weight)</Text>
-            <Text style={styles.text}>{'   '}Light:       {normalizeLux(parseFloat(currentData.lux) || 0).toFixed(3)} (10% weight)</Text>
-            <Text style={styles.text}>{'   '}Sound:       {normalizeSound(parseFloat(currentData.sound) || 0).toFixed(3)} (15% weight)</Text>
+          <Line text="MANUAL SENSOR INPUT" />
+          <Spacer />
+          <InputRow
+            label="TEMPERATURE (°C)"
+            value={manualData.temperature}
+            onChangeText={(v) =>
+              setManualData({ ...manualData, temperature: v })
+            }
+            placeholder="23.5"
+          />
+          <InputRow
+            label="HUMIDITY (%)"
+            value={manualData.humidity}
+            onChangeText={(v) => setManualData({ ...manualData, humidity: v })}
+            placeholder="45"
+          />
+          <InputRow
+            label="IAQ INDEX"
+            value={manualData.iaq}
+            onChangeText={(v) => setManualData({ ...manualData, iaq: v })}
+            placeholder="35"
+          />
+          <InputRow
+            label="LUMINOSITY (LUX)"
+            value={manualData.lux}
+            onChangeText={(v) => setManualData({ ...manualData, lux: v })}
+            placeholder="400"
+          />
+          <InputRow
+            label="SOUND (dB)"
+            value={manualData.sound}
+            onChangeText={(v) => setManualData({ ...manualData, sound: v })}
+            placeholder="35"
+          />
         </View>
-    );
+      )}
+
+      {inputMode === 'api' && (
+        <View>
+          <Line text="API DATA SOURCE + SIMULATION" />
+          <Spacer />
+
+          <Text style={styles.text}>{'> SEARCH LOCATION'}</Text>
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="TYPE CITY NAME"
+            placeholderTextColor="#004422"
+            style={styles.input}
+          />
+          <TouchableOpacity onPress={searchCity}>
+            <Text style={styles.command}>[ SEARCH ]</Text>
+          </TouchableOpacity>
+
+          {searchResults.length > 0 && (
+            <View style={styles.searchResults}>
+              {searchResults.map((item, i) => (
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => {
+                    setCity(item.name.toUpperCase());
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }}>
+                  <Text style={styles.text}>
+                    {'   '}→ {item.name.toUpperCase()}, {item.country}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <Spacer />
+          <Line text={`LOCATION: ${city}`} />
+          <Line text="SIMULATING INDOOR CONDITIONS FROM OUTDOOR DATA" />
+          <Spacer />
+
+          <Line text="WORLD MAP" />
+          <WorldMap coords={coords} />
+
+          <Spacer />
+          <Line text="SIMULATED INDOOR ENVIRONMENT" />
+          <Spacer />
+
+          {loading ? (
+            <Text style={styles.text}> LOADING DATA...</Text>
+          ) : (
+            <>
+              <Row
+                icon={<TempIcon />}
+                label="TEMPERATURE"
+                value={
+                  apiData.temperature !== null
+                    ? `${apiData.temperature}°C`
+                    : 'N/A'
+                }
+              />
+              <Row
+                icon={<HumidityIcon />}
+                label="HUMIDITY"
+                value={
+                  apiData.humidity !== null ? `${apiData.humidity}%` : 'N/A'
+                }
+              />
+              <Row
+                icon={<AqiIcon />}
+                label="IAQ INDEX"
+                value={apiData.iaq !== null ? `${apiData.iaq}` : 'N/A'}
+              />
+              <Row
+                icon={<LightIcon />}
+                label="LUMINOSITY"
+                value={apiData.lux !== null ? `${apiData.lux} LUX` : 'N/A'}
+              />
+              <Row
+                icon={<SoundIcon />}
+                label="SOUND LEVEL"
+                value={apiData.sound !== null ? `${apiData.sound} dB` : 'N/A'}
+              />
+            </>
+          )}
+        </View>
+      )}
+
+      <Spacer />
+      <Line text="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" />
+      <Spacer />
+
+      <Line text="DIVERGENCE ANALYSIS" />
+      <Spacer />
+
+      <Row
+        icon={<DivergenceIcon />}
+        label="DIVERGENCE"
+        value={divergence.toFixed(6)}
+        color={category.color}
+      />
+      <Row
+        icon={<Text style={{ fontSize: 16 }}>{category.emoji}</Text>}
+        label="CATEGORY"
+        value={category.label}
+        color={category.color}
+      />
+      <Row
+        icon={<Text style={{ fontSize: 16, color: '#fff' }}>🌐</Text>}
+        label="WORLD LINE"
+        value={worldLine}
+        color={getWorldLineColor(worldLine)}
+      />
+
+      <Spacer />
+      <Line text="COMPONENT SCORES" />
+      <Spacer />
+
+      <Text style={styles.text}>
+        {'   '}Temperature:{' '}
+        {normalizeTemperature(parseFloat(currentData.temperature) || 0).toFixed(
+          3
+        )}{' '}
+        (30% weight)
+      </Text>
+      <Text style={styles.text}>
+        {'   '}Humidity:{' '}
+        {normalizeHumidity(parseFloat(currentData.humidity) || 0).toFixed(3)}{' '}
+        (20% weight)
+      </Text>
+      <Text style={styles.text}>
+        {'   '}IAQ: {normalizeIAQ(parseFloat(currentData.iaq) || 0).toFixed(3)}{' '}
+        (25% weight)
+      </Text>
+      <Text style={styles.text}>
+        {'   '}Light:{' '}
+        {normalizeLux(parseFloat(currentData.lux) || 0).toFixed(3)} (10% weight)
+      </Text>
+      <Text style={styles.text}>
+        {'   '}Sound:{' '}
+        {normalizeSound(parseFloat(currentData.sound) || 0).toFixed(3)} (15%
+        weight)
+      </Text>
+    </View>
+  );
 }
 
-/* ─── DOCUMENTATION ───────────────────────────────────────────────────────── */
+/* DOCUMENTATION */
 
 function DocumentationMode() {
-    return (
-        <View>
-            <Line text="HARDWARE DOCUMENTATION" />
-            <Spacer />
+  return (
+    <View>
+      <Line text="HARDWARE DOCUMENTATION" />
+      <Spacer />
 
-            <Line text="SYSTEM COMPONENTS:" />
-            <Spacer />
-            <Text style={styles.text}>   • ESP32 MODULE</Text>
-            <Text style={styles.text}>   • BH 1750 LIGHT SENSOR</Text>
-            <Text style={styles.text}>   • BME 688 IAQ-ENVIRONMENT SENSOR</Text>
-            <Text style={styles.text}>   • INMP 441 SOUND SENSOR</Text>
-            <Text style={styles.text}>   • 2.4" SPI TFT DISPLAY</Text>
-            <Spacer />
+      <Line text="SYSTEM COMPONENTS:" />
+      <Spacer />
+      <Text style={styles.text}> • ESP32 MODULE</Text>
+      <Text style={styles.text}> • BH 1750 LIGHT SENSOR</Text>
+      <Text style={styles.text}> • BME 688 IAQ-ENVIRONMENT SENSOR</Text>
+      <Text style={styles.text}> • INMP 441 SOUND SENSOR</Text>
+      <Text style={styles.text}> • 2.4" SPI TFT DISPLAY</Text>
+      <Spacer />
 
-            <DocSection
-                title="ESP32 MODULE"
-                content="The ESP32, developed by Espressif Systems, is a low-cost, low-power System-on-Chip (SoC) with integrated Wi-Fi and Bluetooth capabilities, making it a versatile choice for a wide range of connected applications. It is widely used in IoT, home automation, wearables, and industrial control systems due to its rich feature set and flexibility."
-            />
-            <DocSection
-                title="BH 1750 LIGHT SENSOR"
-                content="Light Dependent Resistor: A passive electronic component that changes its resistance based on light intensity. It decreases resistance as light increases, commonly used in light-sensing applications."
-            />
-            <DocSection
-                title="BME 688 IAQ-ENVIRONMENT SENSOR"
-                content="The BME 688 gas sensor is an air quality sensor used to detect a variety of harmful gases, including ammonia, nitrogen oxide, benzene, smoke, and carbon dioxide. It operates at a voltage of 5V and consumes about 150mA of current. The sensor is commonly used in environmental monitoring systems and IoT applications to measure air quality. It provides output in both digital and analog formats, making it versatile for various applications."
-            />
-            <DocSection
-                title="INMP 441 SOUND SENSOR"
-                content="A sound sensor is a device that detects sound signals, such as voice, claps, or knocks, and converts them into electrical signals. It typically consists of a diaphragm that vibrates in response to sound waves, along with components like a capacitive microphone, peak detector, and amplifier. Sound sensors can measure sound intensity and are used in various applications, from simple clap switches to complex audio recording systems."
-            />
-            <DocSection
-                title='2.4" SPI TFT DISPLAY'
-                content="The 2.4 inch SPI TFT display is a compact and versatile display module that is widely used in various applications. It features a 240x320 resolution, which is ideal for cost-effective embedded GUIs and status displays. The display is built on a TN panel with a 6 o'clock viewing direction, making it suitable for applications where the screen is typically viewed from above or straight-on. The module supports a 40-pin SPI/RGB interface and includes the ILI9341V driver IC."
-            />
+      <DocSection
+        title="ESP32 MODULE"
+        content="The ESP32, developed by Espressif Systems, is a low-cost, low-power System-on-Chip (SoC) with integrated Wi-Fi and Bluetooth capabilities, making it a versatile choice for a wide range of connected applications. It is widely used in IoT, home automation, wearables, and industrial control systems due to its rich feature set and flexibility."
+      />
+      <DocSection
+        title="BH 1750 LIGHT SENSOR"
+        content="Light Dependent Resistor: A passive electronic component that changes its resistance based on light intensity. It decreases resistance as light increases, commonly used in light-sensing applications."
+      />
+      <DocSection
+        title="BME 688 IAQ-ENVIRONMENT SENSOR"
+        content="The BME 688 gas sensor is an air quality sensor used to detect a variety of harmful gases, including ammonia, nitrogen oxide, benzene, smoke, and carbon dioxide. It operates at a voltage of 5V and consumes about 150mA of current. The sensor is commonly used in environmental monitoring systems and IoT applications to measure air quality. It provides output in both digital and analog formats, making it versatile for various applications."
+      />
+      <DocSection
+        title="INMP 441 SOUND SENSOR"
+        content="A sound sensor is a device that detects sound signals, such as voice, claps, or knocks, and converts them into electrical signals. It typically consists of a diaphragm that vibrates in response to sound waves, along with components like a capacitive microphone, peak detector, and amplifier. Sound sensors can measure sound intensity and are used in various applications, from simple clap switches to complex audio recording systems."
+      />
+      <DocSection
+        title='2.4" SPI TFT DISPLAY'
+        content="The 2.4 inch SPI TFT display is a compact and versatile display module that is widely used in various applications. It features a 240x320 resolution, which is ideal for cost-effective embedded GUIs and status displays. The display is built on a TN panel with a 6 o'clock viewing direction, making it suitable for applications where the screen is typically viewed from above or straight-on. The module supports a 40-pin SPI/RGB interface and includes the ILI9341V driver IC."
+      />
 
-            <Spacer />
-            <Line text="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" />
-            <Spacer />
+      <Spacer />
+      <Line text="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" />
+      <Spacer />
 
-            <Line text="DIVERGENCE MODEL DOCUMENTATION" />
-            <Spacer />
+      <Line text="DIVERGENCE MODEL DOCUMENTATION" />
+      <Spacer />
 
-            <DocSection
-                title="WEIGHT DISTRIBUTION"
-                content="Temperature: 30% (immediate physiological impact), IAQ/VOC: 25% (invisible stressor), Humidity: 20% (modulates thermal stress), Sound: 15% (chronic health impact), Light: 10% (wide tolerance)."
-            />
-            <DocSection
-                title="WORLD LINE CLASSIFICATION"
-                content="STEINS (≥0.90): Perfect environment. GAMMA (0.60-0.79): Acceptable conditions. BETA (0.20-0.59): Poor environment. ALPHA (<0.20): Severe instability."
-            />
-            <DocSection
-                title="NORMALIZATION RANGES"
-                content="Temperature optimal: 22.2-25.6°C. Humidity optimal: 40-50%. IAQ excellent: 0-50. Luminosity ideal: 300-500 lux. Sound ideal: ≤30 dB."
-            />
+      <DocSection
+        title="WEIGHT DISTRIBUTION"
+        content="Temperature: 30% (immediate physiological impact), IAQ/VOC: 25% (invisible stressor), Humidity: 20% (modulates thermal stress), Sound: 15% (chronic health impact), Light: 10% (wide tolerance)."
+      />
+      <DocSection
+        title="WORLD LINE CLASSIFICATION"
+        content="STEINS (≥0.90): Perfect environment. GAMMA (0.60-0.79): Acceptable conditions. BETA (0.20-0.59): Poor environment. ALPHA (<0.20): Severe instability."
+      />
+      <DocSection
+        title="NORMALIZATION RANGES"
+        content="Temperature optimal: 22.2-25.6°C. Humidity optimal: 40-50%. IAQ excellent: 0-50. Luminosity ideal: 300-500 lux. Sound ideal: ≤30 dB."
+      />
 
-            <Spacer />
-            <Line text="END OF DOCUMENTATION" />
-        </View>
-    );
+      <Spacer />
+      <Line text="END OF DOCUMENTATION" />
+    </View>
+  );
 }
 
-/* ─── DASHBOARD MODE ──────────────────────────────────────────────────────── */
+/* DASHBOARD MODE */
 
 function DashboardMode() {
-    // TODO: Fetch dashboard data from Supabase
-    // TODO: Subscribe to realtime divergence updates
-    // TODO: Replace mock alerts with real alert system from Supabase
+  // TODO: Fetch dashboard data from Supabase
+  // TODO: Subscribe to realtime divergence updates
+  // TODO: Replace mock alerts with real alert system from Supabase
 
-    const [activeFilter, setActiveFilter] = useState('24H');
-    // FIX: chartWidth state belongs here, used by charts in this component
-    const [chartWidth, setChartWidth] = useState(0);
+  const [dbData, setDbData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    // ── MOCK DATA ──────────────────────────────────────────────────────────────
+  const fetchDashboardData = async () => {
+    setLoading(true);
 
-    const overview = {
-        current: 0.72,
-        worldLine: 'GAMMA',
-        avg: 0.65,
-        best: 0.91,
-        worst: 0.32,
-    };
+    const { data, error } = await supabase
+      .from('sensor_data')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
 
-    // TODO: Replace mock chart data with Supabase query results
-    const graphData = {
-        '24H': [
-            { label: '00:00', val: 0.55 },
-            { label: '04:00', val: 0.48 },
-            { label: '08:00', val: 0.61 },
-            { label: '12:00', val: 0.72 },
-            { label: '16:00', val: 0.68 },
-            { label: '20:00', val: 0.70 },
-            { label: '24:00', val: 0.64 },
-        ],
-        '7D': [
-            { label: 'MON', val: 0.72 },
-            { label: 'TUE', val: 0.65 },
-            { label: 'WED', val: 0.58 },
-            { label: 'THU', val: 0.80 },
-            { label: 'FRI', val: 0.74 },
-            { label: 'SAT', val: 0.91 },
-            { label: 'SUN', val: 0.62 },
-        ],
-        '14D': [
-            { label: 'W1M', val: 0.70 },
-            { label: 'W1T', val: 0.60 },
-            { label: 'W1W', val: 0.55 },
-            { label: 'W1T', val: 0.75 },
-            { label: 'W1F', val: 0.80 },
-            { label: 'W1S', val: 0.88 },
-            { label: 'W1S', val: 0.66 },
-            { label: 'W2M', val: 0.72 },
-            { label: 'W2T', val: 0.65 },
-            { label: 'W2W', val: 0.58 },
-            { label: 'W2T', val: 0.80 },
-            { label: 'W2F', val: 0.74 },
-            { label: 'W2S', val: 0.91 },
-            { label: 'W2S', val: 0.62 },
-        ],
-    };
+    if (error) {
+      console.log('Supabase error:', error);
+    } else if (data) {
+      setDbData(data);
+    }
 
-    // TODO: Compute distribution from Supabase historical records
-    const distribution = [
-        { label: 'PERFECT', pct: 20, color: '#00ff88', legendFontColor: '#00ff88', legendFontSize: 11 },
-        { label: 'GOOD',    pct: 40, color: '#88ff88', legendFontColor: '#88ff88', legendFontSize: 11 },
-        { label: 'POOR',    pct: 30, color: '#ff9944', legendFontColor: '#ff9944', legendFontSize: 11 },
-        { label: 'SEVERE',  pct: 10, color: '#ff4444', legendFontColor: '#ff4444', legendFontSize: 11 },
-    ];
+    setLoading(false);
+  };
 
-    // TODO: Replace with Supabase rolling 7-day summary query
-    const dailySummary = [
-        { day: 'D1', val: 0.72 },
-        { day: 'D2', val: 0.65 },
-        { day: 'D3', val: 0.58 },
-        { day: 'D4', val: 0.80 },
-        { day: 'D5', val: 0.74 },
-        { day: 'D6', val: 0.91 },
-        { day: 'D7', val: 0.62 },
-    ];
+  useEffect(() => {
+    fetchDashboardData();
 
-    // TODO: Fetch extremes from Supabase aggregated query
-    const extremes = {
-        highest: { val: 0.91, time: '10:30 AM SAT' },
-        lowest:  { val: 0.32, time: '03:15 AM WED' },
-    };
+    const interval = setInterval(fetchDashboardData, 30000);
 
-    // TODO: Replace with trend algorithm computed from Supabase time-series
-    const trend = {
+    return () => clearInterval(interval);
+  }, []);
+
+  const latest = dbData[0];
+
+  const [activeFilter, setActiveFilter] = useState('24H');
+
+  // ── DASHBOARD DATA ──────────────────────────────────────────────────────────────
+
+  // Recommendations
+
+  const recommendations = [];
+
+  if (latest?.gas > 120)
+    recommendations.push('• Improve ventilation (IAQ high)');
+  if (latest?.light < 200) recommendations.push('• Increase lighting');
+  if (latest?.sound > 60) recommendations.push('• Reduce noise levels');
+  if (latest?.humidity > 65) recommendations.push('• Reduce humidity');
+  if (recommendations.length === 0) {
+    recommendations.push('• Environment is stable');
+  }
+
+  // Alerts
+
+  const alerts =
+    dbData.length === 0
+      ? []
+      : dbData
+          .slice(0, 10)
+          .filter((d) => d.divergence < 0.5 || d.gas > 150)
+          .map((d) => ({
+            icon: d.divergence < 0.3 ? '🔴' : '⚠️',
+            msg: `D=${d.divergence.toFixed(2)} | IAQ=${d.gas}`,
+          }));
+
+  if (alerts.length === 0) {
+    alerts.push({ icon: '🟢', msg: 'All conditions normal' });
+  }
+
+  // Trend
+
+  let trend = { direction: '-', label: 'STABLE', detail: 'Not enough data' };
+
+  if (dbData.length >= 2) {
+    const latest = dbData[0].divergence;
+    const prev = dbData[1].divergence;
+
+    if (latest > prev) {
+      trend = {
         direction: '↑',
         label: 'IMPROVING',
-        detail: 'Divergence has risen +0.07 over the past 6 hours. IAQ and temperature are moving toward optimal ranges.',
-    };
+        detail: 'Divergence increasing',
+      };
+    } else if (latest < prev) {
+      trend = {
+        direction: '↓',
+        label: 'DECLINING',
+        detail: 'Divergence decreasing',
+      };
+    }
+  }
 
-    // TODO: Replace with real alert records from Supabase alerts table
-    const alerts = [
-        { icon: '⚠️', msg: 'High IAQ at 2:15 PM' },
-        { icon: '🔴', msg: 'Noise spike at 4:30 PM' },
-        { icon: '🟡', msg: 'Temperature drifted above 28°C at 1:00 PM' },
-        { icon: '✅', msg: 'All sensors nominal since 6:00 PM' },
-    ];
+  // Extremes
 
-    // TODO: Generate recommendations dynamically from live sensor thresholds
-    const recommendations = [
-        '• Improve ventilation — IAQ exceeded 120 for 3+ hrs today.',
-        '• Reduce noise exposure during peak hours (1–5 PM).',
-        '• Increase lighting — lux dropped below 250 in the afternoon.',
-        '• Humidity trending high; consider dehumidifier use.',
-    ];
+  const extremes = {
+    highest:
+      dbData.length > 0
+        ? dbData.reduce((max, d) => (d.divergence > max.divergence ? d : max))
+        : null,
 
-    const valColor = (val) => getDivergenceCategory(val).color;
+    lowest:
+      dbData.length > 0
+        ? dbData.reduce((min, d) => (d.divergence < min.divergence ? d : min))
+        : null,
+  };
 
-    // ── CHART DATA ─────────────────────────────────────────────────────────────
+  // Distribution
 
-    const activePoints = graphData[activeFilter];
+  const distribution = dbData.reduce(
+    (acc, d) => {
+      const cat = getDivergenceCategory(d.divergence).label;
 
-    const lineChartData = {
-        labels: activePoints.map((p) => p.label),
-        datasets: [{ data: activePoints.map((p) => p.val) }],
-    };
+      if (cat === 'PERFECT' || cat === 'EXCELLENT') acc.good++;
+      else if (cat === 'ACCEPTABLE') acc.ok++;
+      else if (cat === 'POOR') acc.poor++;
+      else acc.severe++;
 
-    const barChartData = {
-        labels: dailySummary.map((d) => d.day),
-        datasets: [{ data: dailySummary.map((d) => d.val) }],
-    };
+      return acc;
+    },
+    { good: 0, ok: 0, poor: 0, severe: 0 }
+  );
 
-    const pieChartData = distribution.map((d) => ({
-        name: d.label,
-        population: d.pct,
-        color: d.color,
-        legendFontColor: d.legendFontColor,
-        legendFontSize: d.legendFontSize,
+  const overview = {
+    current: latest?.divergence ?? 0,
+    worldLine: latest ? getWorldLine(latest.divergence) : 'WAITING',
+    avg:
+      dbData.length > 0
+        ? dbData.reduce((sum, d) => sum + d.divergence, 0) / dbData.length
+        : 0,
+    best: dbData.length > 0 ? Math.max(...dbData.map((d) => d.divergence)) : 0,
+    worst: dbData.length > 0 ? Math.min(...dbData.map((d) => d.divergence)) : 0,
+  };
+
+  const valColor = (val) => getDivergenceCategory(val).color;
+
+  // DAILY SUMMARY
+
+  const dailySummaryMap = {};
+
+  dbData.forEach((d) => {
+    const day = new Date(d.created_at).toLocaleDateString();
+
+    if (!dailySummaryMap[day]) {
+      dailySummaryMap[day] = [];
+    }
+
+    dailySummaryMap[day].push(d.divergence);
+  });
+
+  const dailySummary = Object.entries(dailySummaryMap)
+    .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+    .slice(-7)
+    .map(([day, values]) => ({
+      day: day.slice(0, 5),
+      val: values.reduce((a, b) => a + b, 0) / values.length,
+    }))
+    .reverse();
+
+  // ── CHART DATA ─────────────────────────────────────────────────────────────
+
+  const getFilteredData = () => {
+    if (activeFilter === '24H') return dbData.slice(0, 10);
+    if (activeFilter === '7D') return dbData.slice(0, 30);
+    if (activeFilter === '14D') return dbData.slice(0, 50);
+    return dbData;
+  };
+
+  const activePoints = getFilteredData()
+    .reverse()
+    .map((d, i) => ({
+      label: i.toString(),
+      val: d.divergence,
     }));
 
-    // ── RENDER ─────────────────────────────────────────────────────────────────
+  const lineChartData = {
+    labels: activePoints.map((p) => p.label),
+    datasets: [{ data: activePoints.map((p) => p.val) }],
+  };
 
+  const barChartData = {
+    labels: dailySummary.map((d) => d.day),
+    datasets: [{ data: dailySummary.map((d) => d.val) }],
+  };
+
+  const total =
+    distribution.good +
+    distribution.ok +
+    distribution.poor +
+    distribution.severe;
+
+  const safeDistribution =
+    total === 0 ? { good: 1, ok: 0, poor: 0, severe: 0 } : distribution;
+
+  const pieChartData = [
+    {
+      name: 'GOOD',
+      population: safeDistribution.good,
+      color: '#00ff88',
+      legendFontColor: '#00ff88',
+      legendFontSize: 11,
+    },
+    {
+      name: 'OK',
+      population: safeDistribution.ok,
+      color: '#ffcc66',
+      legendFontColor: '#ffcc66',
+      legendFontSize: 11,
+    },
+    {
+      name: 'POOR',
+      population: safeDistribution.poor,
+      color: '#ff9944',
+      legendFontColor: '#ff9944',
+      legendFontSize: 11,
+    },
+    {
+      name: 'SEVERE',
+      population: safeDistribution.severe,
+      color: '#ff4444',
+      legendFontColor: '#ff4444',
+      legendFontSize: 11,
+    },
+  ];
+
+  // ── RENDER ─────────────────────────────────────────────────────────────────
+
+  if (loading) {
     return (
-        // FIX: measure container width via onLayout; all charts use chartWidth
-        <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
-            <Line text="DASHBOARD — HISTORICAL ANALYTICS" />
-            <Spacer />
-
-            {/* ── 1. OVERVIEW ─────────────────────────────────────────────── */}
-            <Line text="[1] OVERVIEW" />
-            <Spacer />
-            <Row icon={<DivergenceIcon />} label="CURRENT" value={overview.current.toFixed(6)} color={valColor(overview.current)} />
-            <Row icon={<Text style={{ fontSize: 16, color: '#fff' }}>🌐</Text>} label="WORLD LINE" value={overview.worldLine} color={getWorldLineColor(overview.worldLine)} />
-            <Row icon={<Text style={{ fontSize: 14, color: '#00ff88' }}>~</Text>} label="TODAY AVG" value={overview.avg.toFixed(6)} color={valColor(overview.avg)} />
-            <Row icon={<Text style={{ fontSize: 14, color: '#00ff88' }}>↑</Text>} label="BEST" value={overview.best.toFixed(6)} color={valColor(overview.best)} />
-            <Row icon={<Text style={{ fontSize: 14, color: '#00ff88' }}>↓</Text>} label="WORST" value={overview.worst.toFixed(6)} color={valColor(overview.worst)} />
-            <Spacer />
-
-            {/* ── 2. DIVERGENCE LINE CHART ─────────────────────────────────── */}
-            <Line text="[2] DIVERGENCE GRAPH" />
-            <Spacer />
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                {['24H', '7D', '14D'].map((f) => (
-                    <TouchableOpacity key={f} onPress={() => setActiveFilter(f)}>
-                        <Text
-                            style={[
-                                styles.command,
-                                activeFilter === f && { color: '#000', backgroundColor: '#00ff88', paddingHorizontal: 4 },
-                            ]}>
-                            [{f}]
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-            {/* FIX: render chart only after width is measured */}
-            {chartWidth > 0 && (
-                <LineChart
-                    data={lineChartData}
-                    width={chartWidth}
-                    height={200}
-                    chartConfig={CHART_CONFIG}
-                    bezier
-                    withDots
-                    withShadow={false}
-                    style={{ borderWidth: 1, borderColor: '#003322' }}
-                    segments={5}
-                />
-            )}
-            <Spacer />
-
-            {/* ── 3. EXTREMES ─────────────────────────────────────────────── */}
-            <Line text="[3] EXTREMES" />
-            <Spacer />
-            <Text style={[styles.text, { color: '#00ff88' }]}>
-                {'   '}HIGHEST : {extremes.highest.val.toFixed(6)}  @ {extremes.highest.time}
-            </Text>
-            <Text style={[styles.text, { color: '#ff4444' }]}>
-                {'   '}LOWEST  : {extremes.lowest.val.toFixed(6)}  @ {extremes.lowest.time}
-            </Text>
-            <Spacer />
-
-            {/* ── 4. PIE CHART — TIME DISTRIBUTION ────────────────────────── */}
-            <Line text="[4] TIME DISTRIBUTION" />
-            <Spacer />
-            {chartWidth > 0 && (
-                <PieChart
-                    data={pieChartData}
-                    width={chartWidth}
-                    height={180}
-                    chartConfig={CHART_CONFIG}
-                    accessor="population"
-                    backgroundColor="transparent"
-                    paddingLeft="10"
-                    style={{ borderWidth: 1, borderColor: '#003322' }}
-                />
-            )}
-            <Spacer />
-
-            {/* ── 5. TREND DETECTION ──────────────────────────────────────── */}
-            <Line text="[5] TREND DETECTION" />
-            <Spacer />
-            <Text style={[styles.text, { color: '#00ff88', fontWeight: 'bold' }]}>
-                {'   '}{trend.direction} STATUS: {trend.label}
-            </Text>
-            <Text style={[styles.docText, { marginLeft: 14, marginTop: 4 }]}>
-                {trend.detail}
-            </Text>
-            <Spacer />
-
-            {/* ── 6. ALERTS ───────────────────────────────────────────────── */}
-            <Line text="[6] ALERTS" />
-            <Spacer />
-            {alerts.map((a, i) => (
-                <Text key={i} style={styles.text}>{'   '}{a.icon}  {a.msg}</Text>
-            ))}
-            <Spacer />
-
-            {/* ── 7. BAR CHART — DAILY SUMMARY ────────────────────────────── */}
-            <Line text="[7] DAILY SUMMARY (LAST 7 DAYS)" />
-            <Spacer />
-            {chartWidth > 0 && (
-                <BarChart
-                    data={barChartData}
-                    width={chartWidth}
-                    height={200}
-                    chartConfig={CHART_CONFIG}
-                    showValuesOnTopOfBars
-                    fromZero
-                    style={{ borderWidth: 1, borderColor: '#003322' }}
-                    yAxisSuffix=""
-                />
-            )}
-            <Spacer />
-
-            {/* ── 8. RECOMMENDATIONS ──────────────────────────────────────── */}
-            <Line text="[8] RECOMMENDATIONS" />
-            <Spacer />
-            {recommendations.map((r, i) => (
-                <Text key={i} style={styles.docText}>{'   '}{r}</Text>
-            ))}
-
-            <Spacer />
-            <Line text="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" />
-            <Line text={`DASHBOARD LOADED @ ${new Date().toLocaleTimeString()}`} />
-        </View>
+      <View>
+        <Line text="LOADING DASHBOARD DATA..." />
+      </View>
     );
+  }
+
+  return (
+    <View>
+      <Line text="DASHBOARD — HISTORICAL ANALYTICS" />
+      <Spacer />
+
+      {/* ── 1. OVERVIEW ─────────────────────────────────────────────── */}
+      <Line text="[1] OVERVIEW" />
+      <Spacer />
+      <Row
+        icon={<DivergenceIcon />}
+        label="CURRENT"
+        value={overview.current?.toFixed?.(6) ?? '0.000000'}
+        color={valColor(overview.current)}
+      />
+      <Line text="[SENSOR SNAPSHOT]" />
+      <Spacer />
+
+      <Row
+        label="TEMP"
+        value={latest?.temperature != null ? `${latest.temperature}°C` : '--'}
+      />
+
+      <Row
+        label="HUMIDITY"
+        value={latest?.humidity != null ? `${latest.humidity}%` : '--'}
+      />
+
+      <Row label="IAQ" value={latest?.gas != null ? `${latest.gas}` : '--'} />
+
+      <Row
+        label="LIGHT"
+        value={latest?.light != null ? `${latest.light} LUX` : '--'}
+      />
+
+      <Row
+        label="SOUND"
+        value={latest?.sound != null ? `${latest.sound} dB` : '--'}
+      />
+
+      <Spacer />
+      <Line
+        text={`LAST UPDATE: ${
+          latest?.created_at
+            ? new Date(latest.created_at).toLocaleString()
+            : '--'
+        }`}
+      />
+      <Spacer />
+      <Row
+        icon={<Text style={{ fontSize: 16, color: '#fff' }}>🌐</Text>}
+        label="WORLD LINE"
+        value={overview.worldLine}
+        color={getWorldLineColor(overview.worldLine)}
+      />
+      <Row
+        icon={<Text style={{ fontSize: 14, color: '#00ff88' }}>~</Text>}
+        label="TODAY AVG"
+        value={overview.avg?.toFixed?.(6) ?? '0.000000'}
+        color={valColor(overview.avg)}
+      />
+      <Row
+        icon={<Text style={{ fontSize: 14, color: '#00ff88' }}>↑</Text>}
+        label="BEST"
+        value={overview.best?.toFixed?.(6) ?? '0.000000'}
+        color={valColor(overview.best)}
+      />
+      <Row
+        icon={<Text style={{ fontSize: 14, color: '#00ff88' }}>↓</Text>}
+        label="WORST"
+        value={overview.worst?.toFixed?.(6) ?? '0.000000'}
+        color={valColor(overview.worst)}
+      />
+      <Spacer />
+
+      {/* ── 2. DIVERGENCE LINE CHART ─────────────────────────────────── */}
+      {/* TODO: Replace mock chart data with Supabase query results       */}
+      {/* TODO: Dynamically update charts via realtime subscription       */}
+      <Line text="[2] DIVERGENCE GRAPH" />
+      <Spacer />
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+        {['24H', '7D', '14D'].map((f) => (
+          <TouchableOpacity key={f} onPress={() => setActiveFilter(f)}>
+            <Text
+              style={[
+                styles.command,
+                activeFilter === f && {
+                  color: '#000',
+                  backgroundColor: '#00ff88',
+                  paddingHorizontal: 4,
+                },
+              ]}>
+              [{f}]
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <LineChart
+        data={lineChartData}
+        width={SCREEN_WIDTH}
+        height={200}
+        chartConfig={CHART_CONFIG}
+        bezier
+        withDots
+        withShadow={false}
+        style={{ borderWidth: 1, borderColor: '#003322' }}
+        segments={5}
+      />
+      <Spacer />
+
+      {/* ── 3. EXTREMES ─────────────────────────────────────────────── */}
+      <Line text="[3] EXTREMES" />
+      <Spacer />
+      <Text style={[styles.text, { color: '#00ff88' }]}>
+        {'   '}HIGHEST : {extremes.highest?.divergence?.toFixed(6) ?? '--'}
+      </Text>
+
+      <Text style={[styles.text, { color: '#ff4444' }]}>
+        {'   '}LOWEST : {extremes.lowest?.divergence?.toFixed(6) ?? '--'}
+      </Text>
+      <Spacer />
+
+      {/* ── 4. PIE CHART — TIME DISTRIBUTION ────────────────────────── */}
+      {/* TODO: Replace mock chart data with Supabase query results       */}
+      {/* TODO: Dynamically update charts via realtime subscription       */}
+      <Line text="[4] TIME DISTRIBUTION" />
+      <Spacer />
+      <PieChart
+        data={pieChartData}
+        width={SCREEN_WIDTH}
+        height={180}
+        chartConfig={CHART_CONFIG}
+        accessor="population"
+        backgroundColor="transparent"
+        paddingLeft="10"
+        style={{ borderWidth: 1, borderColor: '#003322' }}
+      />
+      <Spacer />
+
+      {/* ── 5. TREND DETECTION ──────────────────────────────────────── */}
+      {/* TODO: Replace with trend algorithm computed from Supabase      */}
+      <Line text="[5] TREND DETECTION" />
+      <Spacer />
+      <Text style={[styles.text, { color: '#00ff88', fontWeight: 'bold' }]}>
+        {'   '}
+        {trend.direction} STATUS: {trend.label}
+      </Text>
+      <Text style={[styles.docText, { marginLeft: 14, marginTop: 4 }]}>
+        {trend.detail}
+      </Text>
+      <Spacer />
+
+      {/* ── 6. ALERTS ───────────────────────────────────────────────── */}
+      {/* TODO: Replace with real alert records from Supabase alerts table */}
+      <Line text="[6] ALERTS" />
+      <Spacer />
+      {alerts.map((a, i) => (
+        <Text key={i} style={styles.text}>
+          {'   '}
+          {a.icon} {a.msg}
+        </Text>
+      ))}
+      <Spacer />
+
+      {/* ── 7. BAR CHART — DAILY SUMMARY ────────────────────────────── */}
+      {/* TODO: Replace mock chart data with Supabase query results       */}
+      {/* TODO: Dynamically update charts via realtime subscription       */}
+      <Line text="[7] DAILY SUMMARY (LAST 7 DAYS)" />
+      <Spacer />
+      <BarChart
+        data={barChartData}
+        width={SCREEN_WIDTH}
+        height={200}
+        chartConfig={CHART_CONFIG}
+        showValuesOnTopOfBars
+        fromZero
+        style={{ borderWidth: 1, borderColor: '#003322' }}
+        yAxisSuffix=""
+      />
+      <Spacer />
+
+      {/* ── 8. RECOMMENDATIONS ──────────────────────────────────────── */}
+      {/* TODO: Generate recommendations dynamically from sensor thresholds */}
+      <Line text="[8] RECOMMENDATIONS" />
+      <Spacer />
+      {recommendations.map((r, i) => (
+        <Text key={i} style={styles.docText}>
+          {'   '}
+          {r}
+        </Text>
+      ))}
+
+      <Spacer />
+      <Line text="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" />
+      <Line text={`DASHBOARD LOADED @ ${new Date().toLocaleTimeString()}`} />
+    </View>
+  );
 }
 
-/* ─── WORLD MAP ───────────────────────────────────────────────────────────── */
+/* WORLD MAP */
 
-/**
- * FIX: WorldMap now correctly:
- *  - Measures its own container width via onLayout (own local state)
- *  - Renders the map image from MAP_SOURCE
- *  - Overlays an SVG marker pin at the correct lat/lon position
- *  - Uses NO hardcoded Dimensions and NO chart components
- */
 function WorldMap({ coords }) {
-    const [size, setSize] = useState({ width: 0, height: 0 });
+  const [size, setSize] = useState({ width: 0, height: 0 });
 
-    const MAP_HEIGHT = 180;
+  const lat = Math.max(-90, Math.min(90, coords.lat));
+  const lon = Math.max(-180, Math.min(180, coords.lon));
+  const x = size.width ? ((lon + 180) / 360) * size.width : 0;
+  const y = size.height ? ((90 - lat) / 180) * size.height : 0;
 
-    // Clamp coords to valid ranges
-    const lat = Math.max(-90, Math.min(90, coords.lat));
-    const lon = Math.max(-180, Math.min(180, coords.lon));
-
-    // Project lat/lon to pixel position (equirectangular)
-    const x = size.width  ? ((lon + 180) / 360) * size.width  : 0;
-    const y = size.height ? ((90 - lat)  / 180) * size.height : 0;
-
-    return (
-        <View
-            style={[styles.mapBox, { height: MAP_HEIGHT }]}
-            onLayout={(e) =>
-                setSize({ width: e.nativeEvent.layout.width, height: MAP_HEIGHT })
-            }
-        >
-            {/* Map image */}
-            <Image
-                source={MAP_SOURCE}
-                style={{ width: '100%', height: MAP_HEIGHT, resizeMode: 'stretch' }}
-            />
-
-            {/* Marker overlay – only render once we have dimensions */}
-            {size.width > 0 && (
-                <Svg
-                    width={size.width}
-                    height={MAP_HEIGHT}
-                    style={{ position: 'absolute', top: 0, left: 0 }}
-                >
-                    {/* Outer pulse ring */}
-                    <Circle
-                        cx={x}
-                        cy={y}
-                        r={8}
-                        fill="none"
-                        stroke="#00ff88"
-                        strokeWidth={1.5}
-                        opacity={0.5}
-                    />
-                    {/* Inner dot */}
-                    <Circle
-                        cx={x}
-                        cy={y}
-                        r={4}
-                        fill="#00ff88"
-                    />
-                </Svg>
-            )}
-        </View>
-    );
+  return (
+    <View
+      style={styles.mapBox}
+      onLayout={(e) => {
+        const width = e.nativeEvent.layout.width;
+        setSize({ width, height: width / 2 });
+      }}>
+      <Image
+        source={MAP_SOURCE}
+        style={{ width: '100%', height: size.height }}
+        resizeMode="contain"
+      />
+      {size.width > 0 && (
+        <Svg
+          width={size.width}
+          height={size.height}
+          style={{ position: 'absolute', top: 0, left: 0 }}>
+          <Circle cx={x} cy={y} r="5" fill="#00ff88" />
+        </Svg>
+      )}
+    </View>
+  );
 }
 
-/* ─── REUSABLES ───────────────────────────────────────────────────────────── */
+/* REUSABLES */
 
 function TerminalPanel({ children }) {
-    return <View style={styles.panel}>{children}</View>;
+  return <View style={styles.panel}>{children}</View>;
 }
 
 function Line({ text }) {
-    return <Text style={styles.text}>{'> '}{text}</Text>;
+  return (
+    <Text style={styles.text}>
+      {'> '}
+      {text}
+    </Text>
+  );
 }
 
 function Row({ icon, label, value, color }) {
-    return (
-        <View style={styles.row}>
-            {icon}
-            <Text style={[styles.text, color && { color }]}>{' '}{label.padEnd(14)} : {value}</Text>
-        </View>
-    );
+  return (
+    <View style={[styles.row, { flexWrap: 'wrap' }]}>
+      {icon}
+      <Text style={[styles.text, color && { color }, { flexShrink: 1 }]}>
+        {' '}
+        {label} : {value}
+      </Text>
+    </View>
+  );
 }
 
 function Spacer() {
-    return <Text style={styles.text}> </Text>;
+  return <Text style={styles.text}> </Text>;
 }
 
 function TabButton({ label, active, onPress }) {
-    return (
-        <TouchableOpacity onPress={onPress} style={styles.tabButton}>
-            {/* FIX: tabButtonActive applied correctly as array style */}
-            <Text style={[styles.tabButtonText, active && styles.tabButtonActive]}>[{label}]</Text>
-        </TouchableOpacity>
-    );
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.tabButton}>
+      <Text style={[styles.tabButtonText, active && styles.tabButtonActive]}>
+        [{label}]
+      </Text>
+    </TouchableOpacity>
+  );
 }
 
 function InputRow({ label, value, onChangeText, placeholder }) {
-    return (
-        <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>{'> '}{label}</Text>
-            <TextInput
-                value={value}
-                onChangeText={onChangeText}
-                placeholder={placeholder}
-                placeholderTextColor="#004422"
-                style={styles.inputField}
-                keyboardType="numeric"
-            />
-        </View>
-    );
+  return (
+    <View style={styles.inputRow}>
+      <Text style={styles.inputLabel}>
+        {'> '}
+        {label}
+      </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#004422"
+        style={styles.inputField}
+        keyboardType="numeric"
+      />
+    </View>
+  );
 }
 
 function DocSection({ title, content }) {
-    return (
-        <View>
-            <Spacer />
-            <Line text={title} />
-            <Spacer />
-            <Text style={styles.docText}>   {content}</Text>
-            <Spacer />
-        </View>
-    );
+  return (
+    <View>
+      <Spacer />
+      <Line text={title} />
+      <Spacer />
+      <Text style={styles.docText}> {content}</Text>
+      <Spacer />
+    </View>
+  );
 }
 
-/* ─── ICONS ───────────────────────────────────────────────────────────────── */
+/* ICONS */
 
 const BaseIcon = ({ children }) => (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">{children}</Svg>
+  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+    {children}
+  </Svg>
 );
 
 const TempIcon = () => (
-    <BaseIcon><Path stroke="#00ff88" strokeWidth={1.5} d="M10 14a2 2 0 104 0V6a2 2 0 10-4 0v8z" /></BaseIcon>
+  <BaseIcon>
+    <Path
+      stroke="#00ff88"
+      strokeWidth={1.5}
+      d="M10 14a2 2 0 104 0V6a2 2 0 10-4 0v8z"
+    />
+  </BaseIcon>
 );
 const HumidityIcon = () => (
-    <BaseIcon><Path stroke="#00ff88" strokeWidth={1.5} d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z" /></BaseIcon>
+  <BaseIcon>
+    <Path
+      stroke="#00ff88"
+      strokeWidth={1.5}
+      d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"
+    />
+  </BaseIcon>
 );
 const AqiIcon = () => (
-    <BaseIcon><Path stroke="#00ff88" strokeWidth={1.5} d="M4 14s2-2 4-2 4 2 6 2 4-2 6-2" /></BaseIcon>
+  <BaseIcon>
+    <Path
+      stroke="#00ff88"
+      strokeWidth={1.5}
+      d="M4 14s2-2 4-2 4 2 6 2 4-2 6-2"
+    />
+  </BaseIcon>
 );
 const LightIcon = () => (
-    <BaseIcon><Path stroke="#00ff88" strokeWidth={1.5} d="M12 3a5 5 0 00-3 9v4h6v-4a5 5 0 00-3-9z" /></BaseIcon>
+  <BaseIcon>
+    <Path
+      stroke="#00ff88"
+      strokeWidth={1.5}
+      d="M12 3a5 5 0 00-3 9v4h6v-4a5 5 0 00-3-9z"
+    />
+  </BaseIcon>
 );
 const SoundIcon = () => (
-    <BaseIcon><Path stroke="#00ff88" strokeWidth={1.5} d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 010 7.07" /></BaseIcon>
+  <BaseIcon>
+    <Path
+      stroke="#00ff88"
+      strokeWidth={1.5}
+      d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 010 7.07"
+    />
+  </BaseIcon>
 );
 const DivergenceIcon = () => (
-    <BaseIcon><Path stroke="#00ff88" strokeWidth={1.5} d="M12 6v12M6 12h12" /></BaseIcon>
+  <BaseIcon>
+    <Path stroke="#00ff88" strokeWidth={1.5} d="M12 6v12M6 12h12" />
+  </BaseIcon>
 );
 const ChipIcon = () => (
-    <BaseIcon><Path stroke="#00ff88" strokeWidth={1.5} d="M7 7h10v10H7z" /></BaseIcon>
+  <BaseIcon>
+    <Path stroke="#00ff88" strokeWidth={1.5} d="M7 7h10v10H7z" />
+  </BaseIcon>
 );
 
-/* ─── STYLES ──────────────────────────────────────────────────────────────── */
+/* STYLES */
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000',
-    },
-    header: {
-        paddingTop: 50,
-        paddingBottom: 20,
-        paddingHorizontal: 14,
-        borderBottomWidth: 1,
-        borderBottomColor: '#003322',
-    },
-    headerText: {
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        fontSize: 16,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    subHeader: {
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        fontSize: 10,
-        textAlign: 'center',
-        marginTop: 4,
-        opacity: 0.7,
-    },
-    content: {
-        flex: 1,
-        paddingHorizontal: 14,
-        paddingTop: 14,
-    },
-    panel: {
-        borderWidth: 1,
-        borderStyle: 'dashed',
-        borderColor: '#00ff88',
-        padding: 12,
-    },
-    text: {
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        fontSize: 13,
-        lineHeight: 22,
-    },
-    docText: {
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        fontSize: 12,
-        lineHeight: 20,
-        opacity: 0.9,
-    },
-    row: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 2,
-    },
-    tabBar: {
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingVertical: 12,
-        backgroundColor: '#000',
-        borderTopWidth: 1,
-        borderTopColor: '#003322',
-    },
-    tabButton: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    tabButtonText: {
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        fontSize: 10,
-        // FIX: was `textAlign: center` (unquoted identifier) — must be a string
-        textAlign: 'center',
-    },
-    tabButtonActive: {
-        color: '#ffffff',
-        fontWeight: 'bold',
-    },
-    command: {
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        fontSize: 12,
-        marginVertical: 6,
-    },
-    input: {
-        borderWidth: 1,
-        borderStyle: 'dashed',
-        borderColor: '#00ff88',
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        padding: 8,
-        marginVertical: 6,
-        fontSize: 13,
-    },
-    inputRow: {
-        marginVertical: 4,
-    },
-    inputLabel: {
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        fontSize: 13,
-        marginBottom: 4,
-    },
-    inputField: {
-        borderWidth: 1,
-        borderColor: '#00ff88',
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        padding: 6,
-        fontSize: 13,
-        marginLeft: 16,
-    },
-    modeToggle: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-    modeButton: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: '#00ff88',
-        padding: 10,
-        alignItems: 'center',
-    },
-    modeButtonActive: {
-        backgroundColor: '#00ff88',
-    },
-    modeButtonText: {
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        fontSize: 11,
-    },
-    modeButtonTextActive: {
-        color: '#000',
-        fontWeight: 'bold',
-    },
-    searchResults: {
-        marginVertical: 8,
-    },
-    mapBox: {
-        width: '100%',
-        backgroundColor: '#000',
-        position: 'relative',
-        marginVertical: 8,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#003322',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  header: {
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#003322',
+  },
+  headerText: {
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  subHeader: {
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 4,
+    opacity: 0.7,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+  },
+  panel: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#00ff88',
+    padding: 10,
+    marginBottom: 100,
+  },
+  text: {
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    fontSize: 13,
+    lineHeight: 22,
+  },
+  docText: {
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    fontSize: 12,
+    lineHeight: 20,
+    opacity: 0.9,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 2,
+  },
+  tabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 20,
+    backgroundColor: '#000',
+    borderTopWidth: 1,
+    borderTopColor: '#003322',
+  },
+  tabButton: {
+    paddingHorizontal: 10,
+  },
+  tabButtonText: {
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    fontSize: 12,
+  },
+  tabButtonActive: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  command: {
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    fontSize: 12,
+    marginVertical: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#00ff88',
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    padding: 8,
+    marginVertical: 6,
+    fontSize: 13,
+  },
+  inputRow: {
+    marginVertical: 4,
+  },
+  inputLabel: {
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  inputField: {
+    borderWidth: 1,
+    borderColor: '#00ff88',
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    padding: 6,
+    fontSize: 13,
+    marginLeft: 16,
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modeButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#00ff88',
+    padding: 10,
+    alignItems: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: '#00ff88',
+  },
+  modeButtonText: {
+    color: '#00ff88',
+    fontFamily: 'monospace',
+    fontSize: 11,
+  },
+  modeButtonTextActive: {
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  searchResults: {
+    marginVertical: 8,
+  },
+  mapBox: {
+    width: '100%',
+    backgroundColor: '#000',
+    position: 'relative',
+    marginVertical: 8,
+  },
 });
