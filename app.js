@@ -15,8 +15,8 @@ import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  'https://paeaehhxldqfnlijhcmp.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhZWFlaGh4bGRxZm5saWpoY21wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODQyNzQsImV4cCI6MjA5MjA2MDI3NH0.NSw_y9nIksN3-0as3ed2J18LT3CQRtU5lD-lcARk4g0'
+  'SUPA_URL',
+  'API SECERET'
 );
 
 /* Global */
