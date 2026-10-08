@@ -4,5 +4,5 @@ built by my friend.
 
 # Contributors
 
-- UI/UX and App development (Major Developer) - https://github.com/MioJoester
+- UI/UX and App development (Major Developer) - https://github.com/YaxYiran
 - Divergence model, ESP32 backend (soon) - Me!
