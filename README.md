@@ -5,7 +5,7 @@ React app for the Environmental Divergence Meter, includes simulation, documenta
 ## Contributors
 
 - UI/UX and App development (Major Developer) - https://github.com/YaxYiran
-- Divergence model, ESP32 backend (soon) - https://github.com/KaneOnPluto/Environmental-Divergence-Meter
+- Divergence model, ESP32 backend - https://github.com/KaneOnPluto/Environmental-Divergence-Meter
 
 ---
 
